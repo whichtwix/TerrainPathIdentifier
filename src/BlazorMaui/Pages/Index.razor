@@ -1,0 +1,112 @@
+﻿@page "/"
+@using System.Drawing;
+@using Microsoft.Extensions.Logging;
+@using TerrainPathIdentifier;
+
+<PageTitle>TerrainPathIdentifier</PageTitle>
+
+<input type="button" @onclick="Refresh" value="Restart"></input>
+<br>
+<br>
+<EditForm Model="@model" OnValidSubmit="model.CreateInstance">
+    <label>choose the file with elevation data, or <a href="http://nifty.stanford.edu/2016/franke-mountain-paths/dataFiles/Colorado_844x480.dat">here is a sample file(480 rows x 844 colmns)</a></label>
+    <br>
+    <button @onclick="@SelectFile">Select file</button>
+    @if (model.File != null)
+    {
+        <label> Selected: @filename</label>
+        <br>
+    }
+    <br>
+    <br>
+    <label for="row-select" id="row">enter the number of rows</label>
+    <input type="number" @bind="@model.Row" required min="0">
+    <label for="colmn-select" id="colmn">enter the number of colmns</label>
+    <input type="number" @bind="@model.Colmn" required min="0">
+    <br>
+    <br>
+    <label>You can enter these now or after the image is made and it will enlarge automatically</label>
+    <br>
+    <label for="height-select" id="row">enter the height the image is enlarged too</label>
+    <input type="number" @bind="@height" min="@model.Row">
+    <label for="width-select" id="colmn">enter the width the image is enlarged too</label>
+    <input type="number" @bind="@width" min="@model.Colmn">
+    <br>
+    <input type="submit" value="Draw map">
+</EditForm>
+
+@if (model.File != null && model.Row != 0 && model.Colmn != 0 && model.clicked)
+{
+    @if (model.Map == null)
+    {
+        model.MakeMap();
+    }
+    <img src="@model.Stream" alt="A greyscale image of a map created from the provided file" width="@width" height="@height"/>
+    <input type="button" @onclick="model.MakeMap" value="Clear">
+    <br>
+    <EditForm Model="@model" OnValidSubmit="model.DrawPath">
+        <label for="route-select">Choose a route length:</label>
+        <select name="routes" id="route-select" required @bind="@model.Selectedlength">
+            <option value=@TerrainPathIdentifier.RouteLengths.Shortest>Shortest</option>
+            <option value=@TerrainPathIdentifier.RouteLengths.Longest>Longest</option>
+            <option value=@TerrainPathIdentifier.RouteLengths.BetweenMinMax>Between short and long</option>
+        </select>
+        <br>
+        <br>
+        <label for="Calculate-select">Choose how route positions are chosen:</label>
+        <select name="Calculatecriteria" id="Calculate-select" required @bind="@model.SelectedCriteria">
+            <option value=@TerrainPathIdentifier.CalucateCriteria.ByActualValue>The actual value of elevations are used</option>
+            <option value=@TerrainPathIdentifier.CalucateCriteria.ByDifference>
+                The absolute difference between the last elevation recorded and the current competing ones
+            </option>
+        </select>
+        <br>
+        <br>
+        @if (model.Selectedlength == RouteLengths.BetweenMinMax)
+        {
+            <label for="routenum-select" id="routenum">How many routes should be calculated</label>
+            <input type="number" required @bind="model.NumRoutes" min="1"/>
+        }
+        <br>
+        <br>
+        <label>Select a color for the path: @model.Color</label>
+        <br>
+        <input type="color" required @bind="model.Color">
+        <br>
+        <input type="submit" value="Draw route">
+    </EditForm>
+}
+
+@code
+{
+    public Model model { get; set; } = new();
+
+    public string filename { get; set; } = "";
+
+    public int height, width = 0;
+
+    public async Task<FileResult> SelectFile()
+    {
+        try
+        {
+            var result = await FilePicker.Default.PickAsync();
+            if (result != null)
+            {
+                model.File = result;
+                filename = result.FileName;
+            }
+
+            return result;
+        }
+        catch (Exception)
+        {
+        }
+
+        return null;
+    }
+
+    public void Refresh()
+    {
+        model = new();
+    }
+}
